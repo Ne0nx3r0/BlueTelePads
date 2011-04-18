@@ -95,7 +95,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                     event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(0)+", stand still!");
 
-                    plugin.getServer().getScheduler().scheduleAsyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
+                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
                 }
             }
         }
@@ -136,7 +136,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 
                 receiver.getFace(BlockFace.UP,3).setType(Material.WATER);
                 
-                plugin.getServer().getScheduler().scheduleAsyncDelayedTask(plugin,new Runnable(){
+                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new Runnable(){
                     public void run(){
                         receiver.getFace(BlockFace.UP,3).setType(Material.AIR);
                     }
