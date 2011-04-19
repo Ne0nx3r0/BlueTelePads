@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 public class BlueTelePadsPlayerListener extends PlayerListener {
     private final BlueTelePads plugin;
     private static Map<String, int[]> mLapisLinks = new HashMap<String, int[]>();
+    private static Map<String, Long> mTimeouts = new HashMap<String, Long>();
 
     public BlueTelePadsPlayerListener(BlueTelePads instance){
         this.plugin = instance;
@@ -73,8 +74,9 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         }
         else if(event.getAction() == Action.PHYSICAL
         && event.getClickedBlock().getType() == Material.STONE_PLATE
-        && event.getClickedBlock().getFace(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK){
-
+        && event.getClickedBlock().getFace(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK
+        && (!mTimeouts.containsKey(event.getPlayer().getName()) || mTimeouts.get(event.getPlayer().getName()) < System.currentTimeMillis())){
+            
             Block bLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
 
             if(isTelePadLapis(bLapis)){
@@ -93,7 +95,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 if(isTelePadLapis(bReceiverLapis)){
                     Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
 
-                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(0)+", stand still!");
+                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(0)+ChatColor.DARK_AQUA+", stand still!");
 
                     plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
                 }
@@ -134,14 +136,15 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 player.teleport(lSendTo);
                 
-                receiver.getFace(BlockFace.UP,3).setType(Material.WATER);
+                receiver.getFace(BlockFace.UP,2).setType(Material.WATER);
                 
+                mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
+
                 plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new Runnable(){
                     public void run(){
-                        receiver.getFace(BlockFace.UP,3).setType(Material.AIR);
+                        receiver.getFace(BlockFace.UP,2).setType(Material.AIR);
                     }
-                },20);
-                
+                },10);               
             }else{
                 player.sendMessage(ChatColor.DARK_AQUA + "Telepad: Something went wrong! Just be grateful you didn't get split in half!");
             }
