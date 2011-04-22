@@ -156,7 +156,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
 
-                event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(0)+", stand still!");
+                event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(3)+", stand still!");
 
                 plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
             }
