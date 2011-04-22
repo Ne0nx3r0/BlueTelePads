@@ -107,6 +107,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
     public void onPlayerInteract(PlayerInteractEvent event){
         if(event.getItem() != null 
         && event.getItem().getType() == Material.REDSTONE
+        && event.getClickedBlock() != null
         && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.UP))){
             if((plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Create"))
             || (plugin.OP_ONLY && !event.getPlayer().isOp())){
@@ -119,6 +120,14 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location stored!");
             }else{
+                if(event.getAction() == Action.RIGHT_CLICK_BLOCK){
+                    mLapisLinks.remove(event.getPlayer().getName());
+
+                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location ditched! (right clicked)");
+
+                    return;
+                }
+
                 Block bFirstLapis = mLapisLinks.get(event.getPlayer().getName());
                 
                 if(isTelePadLapis(bFirstLapis)){
@@ -128,7 +137,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                     }
 
                     mLapisLinks.remove(event.getPlayer().getName());
-                    
+
                     linkTelepadLapisReceivers(bFirstLapis,event.getClickedBlock().getFace(BlockFace.UP));
 
                     event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location transferred!");
@@ -136,8 +145,8 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
             }
         }
         else if(event.getAction() == Action.PHYSICAL
+        && event.getClickedBlock() != null
         && event.getClickedBlock().getType() == Material.STONE_PLATE
-        && event.getClickedBlock().getFace(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK
         && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.DOWN))
         && (!mTimeouts.containsKey(event.getPlayer().getName()) || mTimeouts.get(event.getPlayer().getName()) < System.currentTimeMillis())){
             Block bLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
