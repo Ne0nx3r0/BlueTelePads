@@ -12,12 +12,13 @@ import org.bukkit.block.Sign;
 import org.bukkit.Location;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.World;
 
 public class BlueTelePadsPlayerListener extends PlayerListener {
     private final BlueTelePads plugin;
-    private static Map<String, int[]> mLapisLinks = new HashMap<String, int[]>();
+    private static Map<String, Block> mLapisLinks  = new HashMap<String, Block>();
     private static Map<String, Long> mTimeouts = new HashMap<String, Long>();
-
+    
     public BlueTelePadsPlayerListener(BlueTelePads instance){
         this.plugin = instance;
     }
@@ -28,8 +29,75 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         && lapisBlock.getFace(BlockFace.WEST).getType() == Material.DOUBLE_STEP
         && lapisBlock.getFace(BlockFace.NORTH).getType() == Material.DOUBLE_STEP
         && lapisBlock.getFace(BlockFace.SOUTH).getType() == Material.DOUBLE_STEP
-        && lapisBlock.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
+        && (lapisBlock.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
+                || lapisBlock.getFace(BlockFace.DOWN).getType() == Material.WALL_SIGN)
         && lapisBlock.getFace(BlockFace.UP).getType() == Material.STONE_PLATE){
+            return true;
+        }
+        return false;
+    }
+
+    private String toHex(int number){
+        return Integer.toHexString(number + 32000);
+    }
+
+    private int toInt(String hex){
+        return Integer.parseInt(hex, 16) - 32000;
+    }
+
+    private Block getTelepadLapisReceiver(Block bSenderLapis){
+        Block bSenderSign = bSenderLapis.getFace(BlockFace.DOWN);
+
+        if(bSenderSign.getType() == Material.WALL_SIGN || bSenderSign.getType() == Material.SIGN_POST){
+            Sign sbSenderSign = (Sign) bSenderSign.getState();
+
+            String sHexLocation = sbSenderSign.getLine(2);
+
+            String sWorld = sbSenderSign.getLine(1);
+            String[] sXYZ = sHexLocation.split(":");
+
+            World world = plugin.getServer().getWorld(sWorld);
+
+            if(world == null){
+                return null;
+            }
+            
+            Block bReceiverLapis = world.getBlockAt(toInt(sXYZ[0]),toInt(sXYZ[1]),toInt(sXYZ[2]));
+            
+            if(isTelePadLapis(bReceiverLapis)){
+                return bReceiverLapis;
+            }
+        }
+        return null;
+    }
+    
+    //currently assumes you checked both blocks with isTelePadLapis
+    private void linkTelepadLapisReceivers(Block bLapis1,Block bLapis2){
+        Sign sbLapis1 = (Sign) bLapis1.getFace(BlockFace.DOWN).getState();
+        Sign sbLapis2 = (Sign) bLapis2.getFace(BlockFace.DOWN).getState();
+
+        sbLapis1.setLine(1,sbLapis2.getWorld().getName());
+        sbLapis2.setLine(1,sbLapis1.getWorld().getName());
+
+        Location lLapis1 = bLapis1.getLocation();
+        Location lLapis2 = bLapis2.getLocation();
+
+        sbLapis1.setLine(2,toHex(lLapis2.getBlockX())+":"+toHex(lLapis2.getBlockY())+":"+toHex(lLapis2.getBlockZ()));
+        sbLapis2.setLine(2,toHex(lLapis1.getBlockX())+":"+toHex(lLapis1.getBlockY())+":"+toHex(lLapis1.getBlockZ()));
+
+        sbLapis1.update(true);
+        sbLapis2.update(true);
+    }
+
+    private static int getDistance(Location loc1,Location loc2){
+        return (int) Math.sqrt(Math.pow(loc2.getBlockX()-loc1.getBlockX(),2)+Math.pow(loc2.getBlockY()-loc1.getBlockY(),2)+Math.pow(loc2.getBlockZ()-loc1.getBlockZ(),2));
+    }
+
+    private boolean TelePadsWithinDistance(Block block1,Block block2){
+        if(plugin.MAX_DISTANCE == 0){
+            return true;
+        }
+        if(getDistance(block1.getLocation(),block2.getLocation()) < plugin.MAX_DISTANCE){
             return true;
         }
         return false;
@@ -40,33 +108,28 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         if(event.getItem() != null 
         && event.getItem().getType() == Material.REDSTONE
         && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.UP))){
-            if(!mLapisLinks.containsKey(event.getPlayer().getName())){
-                Location lClicked = event.getClickedBlock().getFace(BlockFace.UP).getLocation();
+            if((plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Create"))
+            || (plugin.OP_ONLY && !event.getPlayer().isOp())){
+                event.getPlayer().sendMessage(ChatColor.RED+"You do not have permission to create a telepad!");
+                return;
+            }
 
-                mLapisLinks.put(event.getPlayer().getName(),new int[] {lClicked.getBlockX(),lClicked.getBlockY(),lClicked.getBlockZ()});
+            if(!mLapisLinks.containsKey(event.getPlayer().getName())){
+                mLapisLinks.put(event.getPlayer().getName(),event.getClickedBlock().getFace(BlockFace.UP));
 
                 event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location stored!");
             }else{
-                int[] iLinkCoords = mLapisLinks.get(event.getPlayer().getName());
-
-                Block bFirstLapis = event.getClickedBlock().getWorld().getBlockAt(iLinkCoords[0],iLinkCoords[1],iLinkCoords[2]);
-
+                Block bFirstLapis = mLapisLinks.get(event.getPlayer().getName());
+                
                 if(isTelePadLapis(bFirstLapis)){
-                    Sign sFirstLink = (Sign) bFirstLapis.getFace(BlockFace.DOWN).getState();
-                    Sign sSecondLink = (Sign) event.getClickedBlock().getState();
-                    Location lSecondLink = event.getClickedBlock().getFace(BlockFace.UP).getLocation();
-
-                    sFirstLink.setLine(1,Integer.toString(lSecondLink.getBlockX()));
-                    sFirstLink.setLine(2,Integer.toString(lSecondLink.getBlockY()));
-                    sFirstLink.setLine(3,Integer.toString(lSecondLink.getBlockZ()));
-                    sFirstLink.update(true);
-
-                    sSecondLink.setLine(1,Integer.toString(iLinkCoords[0]));
-                    sSecondLink.setLine(2,Integer.toString(iLinkCoords[1]));
-                    sSecondLink.setLine(3,Integer.toString(iLinkCoords[2]));
-                    sSecondLink.update(true);
+                    if(!TelePadsWithinDistance(bFirstLapis,event.getClickedBlock())){
+                        event.getPlayer().sendMessage(ChatColor.RED+"Error: "+ChatColor.DARK_AQUA + " Telepads are too far apart! (Distance:"+getDistance(bFirstLapis.getLocation(),event.getClickedBlock().getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
+                        return;
+                    }
 
                     mLapisLinks.remove(event.getPlayer().getName());
+                    
+                    linkTelepadLapisReceivers(bFirstLapis,event.getClickedBlock().getFace(BlockFace.UP));
 
                     event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location transferred!");
                 }
@@ -75,36 +138,29 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         else if(event.getAction() == Action.PHYSICAL
         && event.getClickedBlock().getType() == Material.STONE_PLATE
         && event.getClickedBlock().getFace(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK
+        && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.DOWN))
         && (!mTimeouts.containsKey(event.getPlayer().getName()) || mTimeouts.get(event.getPlayer().getName()) < System.currentTimeMillis())){
-            
             Block bLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
+            Block bReceiverLapis = getTelepadLapisReceiver(bLapis);
 
-            if(isTelePadLapis(bLapis)){
-                Sign sbPortalSign = (Sign) bLapis.getFace(BlockFace.DOWN).getState();
-                String[] sBlockLines = sbPortalSign.getLines();
-
-                Block bReceiverLapis;
-
-                try{
-                    bReceiverLapis = sbPortalSign.getWorld().getBlockAt(Integer.parseInt(sBlockLines[1]),Integer.parseInt(sBlockLines[2]),Integer.parseInt(sBlockLines[3]));
-                }
-                catch(Exception e){
+            if(bReceiverLapis != null){
+                if(plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Use")){
+                    event.getPlayer().sendMessage(ChatColor.RED+"You do not have permission to use telepads");
                     return;
                 }
 
-                if(isTelePadLapis(bReceiverLapis)){
-                    Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
-
-                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(0)+ChatColor.DARK_AQUA+", stand still!");
-
-                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
+                if(!TelePadsWithinDistance(bLapis,bReceiverLapis)){
+                    event.getPlayer().sendMessage(ChatColor.RED+"Error: "+ChatColor.DARK_AQUA + " Telepads are too far apart! (Distance:"+getDistance(bLapis.getLocation(),bReceiverLapis.getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
+                    return;
                 }
+
+                Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
+
+                event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(0)+", stand still!");
+
+                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
             }
         }
-    }
-
-    private static int getDistance(Location loc1,Location loc2){
-        return (int) Math.sqrt(Math.pow(loc2.getBlockX()-loc1.getBlockX(),2)+Math.pow(loc2.getBlockY()-loc1.getBlockY(),2)+Math.pow(loc2.getBlockZ()-loc1.getBlockZ(),2));
     }
 
     private static class BluePadTeleport implements Runnable{
@@ -135,16 +191,8 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 lSendTo.setZ(lSendTo.getZ()+0.5);
 
                 player.teleport(lSendTo);
-                
-                receiver.getFace(BlockFace.UP,2).setType(Material.WATER);
-                
-                mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
 
-                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new Runnable(){
-                    public void run(){
-                        receiver.getFace(BlockFace.UP,2).setType(Material.AIR);
-                    }
-                },10);               
+                mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
             }else{
                 player.sendMessage(ChatColor.DARK_AQUA + "Telepad: Something went wrong! Just be grateful you didn't get split in half!");
             }
