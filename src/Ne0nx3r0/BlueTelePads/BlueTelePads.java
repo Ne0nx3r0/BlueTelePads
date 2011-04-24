@@ -18,6 +18,7 @@ public class BlueTelePads extends JavaPlugin{
     public int MAX_DISTANCE = 0;
     public boolean USE_PERMISSIONS = false;
     public boolean OP_ONLY = false;
+    public boolean DISABLE_TELEPORT_WAIT = false;
 
     public void onDisable(){
         System.out.println("[BlueTelePads] Disabled");
@@ -33,6 +34,7 @@ public class BlueTelePads extends JavaPlugin{
             config.setProperty("max_telepad_distance",MAX_DISTANCE);
             config.setProperty("use_permissions",USE_PERMISSIONS);
             config.setProperty("op_only",OP_ONLY);
+            config.setProperty("disable_teleport_wait",DISABLE_TELEPORT_WAIT);
 
             config.save();
         }
@@ -40,6 +42,7 @@ public class BlueTelePads extends JavaPlugin{
         MAX_DISTANCE = config.getInt("max_telepad_distance",MAX_DISTANCE);
         USE_PERMISSIONS = config.getBoolean("use_permissions",USE_PERMISSIONS);
         OP_ONLY = config.getBoolean("op_only",OP_ONLY);
+        DISABLE_TELEPORT_WAIT = config.getBoolean("disable_teleport_wait",DISABLE_TELEPORT_WAIT);
 
         if(USE_PERMISSIONS){
             Plugin perm = this.getServer().getPluginManager().getPlugin("Permissions");

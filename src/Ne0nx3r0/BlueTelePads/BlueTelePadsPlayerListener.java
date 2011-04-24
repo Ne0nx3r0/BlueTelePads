@@ -139,9 +139,13 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
 
-                msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
+                if(plugin.DISABLE_TELEPORT_WAIT){
+                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis));
+                }else{
+                    msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
 
-                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis),SEND_WAIT_TIMER);
+                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis),SEND_WAIT_TIMER);
+               }
             }
         }
         //Creating a telepad link
