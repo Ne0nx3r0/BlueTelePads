@@ -15,7 +15,7 @@ public class BlueTelePads extends JavaPlugin{
     
     public static PermissionHandler Permissions;
 
-    public int MAX_DISTANCE = 500;
+    public int MAX_DISTANCE = 0;
     public boolean USE_PERMISSIONS = false;
     public boolean OP_ONLY = false;
 
@@ -30,7 +30,6 @@ public class BlueTelePads extends JavaPlugin{
         if(config.getInt("max_telepad_distance",-1) == -1){
             System.out.println("[BlueTelepads] Creating default config file...");
 
-            MAX_DISTANCE = 150;
             config.setProperty("max_telepad_distance",MAX_DISTANCE);
             config.setProperty("use_permissions",USE_PERMISSIONS);
             config.setProperty("op_only",OP_ONLY);
@@ -56,6 +55,6 @@ public class BlueTelePads extends JavaPlugin{
         pm.registerEvent(Event.Type.PLAYER_INTERACT, playerListener, Priority.Normal, this);
 
         PluginDescriptionFile pdfFile = this.getDescription();
-        System.out.println("[BlueTelePads] "+pdfFile.getName() + " version " + pdfFile.getVersion() + " ENABLED" );
+        System.out.println("["+pdfFile.getName() + "] version " + pdfFile.getVersion() + " ENABLED" );
     }
 }

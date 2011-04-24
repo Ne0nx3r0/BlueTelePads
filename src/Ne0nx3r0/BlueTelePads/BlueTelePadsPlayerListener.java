@@ -16,14 +16,22 @@ import org.bukkit.World;
 
 public class BlueTelePadsPlayerListener extends PlayerListener {
     private final BlueTelePads plugin;
-    private static Map<String, Block> mLapisLinks  = new HashMap<String, Block>();
+    private static Map<String, Location> mLapisLinks  = new HashMap<String, Location>();
     private static Map<String, Long> mTimeouts = new HashMap<String, Long>();
+    
+    //Ticks to wait between standing on a telepad, and sending the player
+    private int SEND_WAIT_TIMER = 60;
     
     public BlueTelePadsPlayerListener(BlueTelePads instance){
         this.plugin = instance;
     }
 
+    public static void msgPlayer(Player player,String msg){
+        player.sendMessage(ChatColor.DARK_AQUA+"[TelePad] "+ChatColor.AQUA+msg);
+    }
+
     public static boolean isTelePadLapis(Block lapisBlock){
+
         if(lapisBlock.getType() == Material.LAPIS_BLOCK
         && lapisBlock.getFace(BlockFace.EAST).getType() == Material.DOUBLE_STEP
         && lapisBlock.getFace(BlockFace.WEST).getType() == Material.DOUBLE_STEP
@@ -63,7 +71,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
             }
             
             Block bReceiverLapis = world.getBlockAt(toInt(sXYZ[0]),toInt(sXYZ[1]),toInt(sXYZ[2]));
-            
+
             if(isTelePadLapis(bReceiverLapis)){
                 return bReceiverLapis;
             }
@@ -105,82 +113,142 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
     @Override
     public void onPlayerInteract(PlayerInteractEvent event){
-        if(event.getItem() != null 
-        && event.getItem().getType() == Material.REDSTONE
+        //Using a telepad, note we verify the timeout here after checking if it's a telepad
+        if(event.getAction() == Action.PHYSICAL
         && event.getClickedBlock() != null
-        && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.UP))){
-            if((plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Create"))
-            || (plugin.OP_ONLY && !event.getPlayer().isOp())){
-                event.getPlayer().sendMessage(ChatColor.RED+"You do not have permission to create a telepad!");
-                return;
-            }
-
-            if(!mLapisLinks.containsKey(event.getPlayer().getName())){
-                mLapisLinks.put(event.getPlayer().getName(),event.getClickedBlock().getFace(BlockFace.UP));
-
-                event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location stored!");
-            }else{
-                if(event.getAction() == Action.RIGHT_CLICK_BLOCK){
-                    mLapisLinks.remove(event.getPlayer().getName());
-
-                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location ditched! (right clicked)");
-
-                    return;
-                }
-
-                Block bFirstLapis = mLapisLinks.get(event.getPlayer().getName());
-                
-                if(isTelePadLapis(bFirstLapis)){
-                    if(!TelePadsWithinDistance(bFirstLapis,event.getClickedBlock())){
-                        event.getPlayer().sendMessage(ChatColor.RED+"Error: "+ChatColor.DARK_AQUA + " Telepads are too far apart! (Distance:"+getDistance(bFirstLapis.getLocation(),event.getClickedBlock().getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
-                        return;
-                    }
-
-                    mLapisLinks.remove(event.getPlayer().getName());
-
-                    linkTelepadLapisReceivers(bFirstLapis,event.getClickedBlock().getFace(BlockFace.UP));
-
-                    event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad location transferred!");
-                }
-            }
-        }
-        else if(event.getAction() == Action.PHYSICAL
-        && event.getClickedBlock() != null
-        && event.getClickedBlock().getType() == Material.STONE_PLATE
         && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.DOWN))
         && (!mTimeouts.containsKey(event.getPlayer().getName()) || mTimeouts.get(event.getPlayer().getName()) < System.currentTimeMillis())){
-            Block bLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
-            Block bReceiverLapis = getTelepadLapisReceiver(bLapis);
+            Block bSenderLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
+            Block bReceiverLapis = getTelepadLapisReceiver(bSenderLapis);
 
+            //Verify receiver is a working telepad
             if(bReceiverLapis != null){
+                //Verify permissions
                 if(plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Use")){
-                    event.getPlayer().sendMessage(ChatColor.RED+"You do not have permission to use telepads");
+                    msgPlayer(event.getPlayer(),"You do not have permission to use telepads");
+
                     return;
                 }
 
-                if(!TelePadsWithinDistance(bLapis,bReceiverLapis)){
-                    event.getPlayer().sendMessage(ChatColor.RED+"Error: "+ChatColor.DARK_AQUA + " Telepads are too far apart! (Distance:"+getDistance(bLapis.getLocation(),bReceiverLapis.getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
+                //Verify distance
+                if(!TelePadsWithinDistance(bSenderLapis,bReceiverLapis)){
+                    msgPlayer(event.getPlayer(),ChatColor.RED+"Error: Telepads are too far apart! (Distance:"+getDistance(bSenderLapis.getLocation(),bReceiverLapis.getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
+
                     return;
                 }
 
                 Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
 
-                event.getPlayer().sendMessage(ChatColor.DARK_AQUA + "Telepad: Preparing to send you to "+sbReceiverSign.getLine(3)+", stand still!");
+                msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
 
-                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(plugin,event.getPlayer(),event.getPlayer().getLocation(),bLapis,bReceiverLapis),60);
+                plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis),SEND_WAIT_TIMER);
+            }
+        }
+        //Creating a telepad link
+        else if(event.getItem() != null
+        && event.getItem().getType() == Material.REDSTONE
+        && event.getClickedBlock() != null
+        && isTelePadLapis(event.getClickedBlock().getFace(BlockFace.DOWN))){
+            //Verify permissions
+            if((plugin.USE_PERMISSIONS && !plugin.Permissions.has(event.getPlayer(),"BlueTelePads.Create"))
+            || (plugin.OP_ONLY && !event.getPlayer().isOp())){
+                msgPlayer(event.getPlayer(),"You do not have permission to create a telepad!");
+                return;
+            }
+
+            if(getTelepadLapisReceiver(event.getClickedBlock().getFace(BlockFace.DOWN)) != null){
+                msgPlayer(event.getPlayer(),"Error: This telepad seems to be linked already!");
+                msgPlayer(event.getPlayer(),ChatColor.YELLOW+"You can reset it by breaking the pressure pad on top of it, then clicking the lapis with redstone.");
+
+                return;
+            }
+
+            //Determine the action
+            if(!mLapisLinks.containsKey(event.getPlayer().getName())){
+                //Initial telepad click
+                mLapisLinks.put(event.getPlayer().getName(),event.getClickedBlock().getFace(BlockFace.DOWN).getLocation());
+
+                msgPlayer(event.getPlayer(),"Telepad location stored!");
+
+                return;
+            }else{
+                //They have a stored location, and right clicked  a telepad lapis, so remove the temp location
+                if(event.getAction() == Action.RIGHT_CLICK_BLOCK){
+                    mLapisLinks.remove(event.getPlayer().getName());
+
+                    msgPlayer(event.getPlayer(),"Telepad location ditched! (right clicked)");
+
+                    return;
+                }else{
+                    //Setting up the second link
+                    Block bFirstLapis = mLapisLinks.get(event.getPlayer().getName()).getBlock();
+
+                    if(isTelePadLapis(bFirstLapis)){
+                        Block bSecondLapis = event.getClickedBlock().getFace(BlockFace.DOWN);
+
+                        if(!TelePadsWithinDistance(bFirstLapis,bSecondLapis)){
+                            msgPlayer(event.getPlayer(),ChatColor.RED+"Error: Telepads are too far apart! (Distance:"+getDistance(bFirstLapis.getLocation(),event.getClickedBlock().getLocation())+",MaxAllowed:"+plugin.MAX_DISTANCE+")");
+
+                            return;
+                        }
+
+                        //The same telepad?
+                        if(bFirstLapis == bSecondLapis){
+                            msgPlayer(event.getPlayer(),ChatColor.RED+"Error: You cannot connect a telepad to itself.");
+
+                            msgPlayer(event.getPlayer(),"Well you could, but why would you want to? Maybe   you want a door or something?");
+
+                            mLapisLinks.remove(event.getPlayer().getName());
+
+                            return;
+                        }
+
+                        mLapisLinks.remove(event.getPlayer().getName());
+
+                        linkTelepadLapisReceivers(bFirstLapis,event.getClickedBlock().getFace(BlockFace.DOWN));
+
+                        msgPlayer(event.getPlayer(),"Telepad location transferred!");
+
+                        return;
+                    }
+                }
+            }
+        }
+        //Resetting telepad
+        else if(event.getItem() != null
+        && event.getItem().getType() == Material.REDSTONE
+        && event.getClickedBlock() != null
+        && event.getClickedBlock().getType() == Material.LAPIS_BLOCK){
+            Block bResetLapis = event.getClickedBlock();
+            if(bResetLapis.getFace(BlockFace.UP).getType() == Material.AIR
+            &&bResetLapis.getFace(BlockFace.EAST).getType() == Material.DOUBLE_STEP
+            && bResetLapis.getFace(BlockFace.WEST).getType() == Material.DOUBLE_STEP
+            && bResetLapis.getFace(BlockFace.NORTH).getType() == Material.DOUBLE_STEP
+            && bResetLapis.getFace(BlockFace.SOUTH).getType() == Material.DOUBLE_STEP
+            &&(bResetLapis.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
+                || bResetLapis.getFace(BlockFace.DOWN).getType() == Material.WALL_SIGN)
+            ){//*phew*
+                //We checked that it's a sign above
+                Sign sbResetSign = (Sign) bResetLapis.getFace(BlockFace.DOWN).getState();
+
+                sbResetSign.setLine(1,"");
+                sbResetSign.setLine(2,"");
+                sbResetSign.update();
+
+                msgPlayer(event.getPlayer(),"Telepad Reset!");
+
+                return;
             }
         }
     }
 
     private static class BluePadTeleport implements Runnable{
-        private final BlueTelePads plugin;
         private final Player player;
         private final Location player_location;
         private final Block receiver;
         private final Block sender;
 
-        BluePadTeleport(BlueTelePads plugin,Player player,Location player_location,Block senderLapis,Block receiverLapis){
-            this.plugin = plugin;
+        BluePadTeleport(Player player,Location player_location,Block senderLapis,Block receiverLapis){
             this.player = player;
             this.player_location = player_location;
             this.sender = senderLapis;
@@ -189,11 +257,11 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
         public void run(){
             if(getDistance(player_location,player.getLocation()) > 1){
-                player.sendMessage(ChatColor.DARK_AQUA + "Telepad: You moved, cancelling teleport!");
+                msgPlayer(player,"You moved, cancelling teleport!");
                 return;
             }
             if(isTelePadLapis(sender) && isTelePadLapis(receiver)){
-                player.sendMessage(ChatColor.DARK_AQUA + "Telepad: Here goes nothing!");
+                msgPlayer(player,"Here goes nothing!");
 
                 Location lSendTo = receiver.getFace(BlockFace.UP,2).getFace(BlockFace.NORTH).getLocation();
                 lSendTo.setX(lSendTo.getX()+0.5);
@@ -203,7 +271,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
             }else{
-                player.sendMessage(ChatColor.DARK_AQUA + "Telepad: Something went wrong! Just be grateful you didn't get split in half!");
+               msgPlayer(player,"Something went wrong! Just be grateful you didn't get split in half!");
             }
         }
     }
