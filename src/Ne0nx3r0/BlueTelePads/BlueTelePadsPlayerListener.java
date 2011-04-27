@@ -18,6 +18,7 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
     private final BlueTelePads plugin;
     private static Map<String, Location> mLapisLinks  = new HashMap<String, Location>();
     private static Map<String, Long> mTimeouts = new HashMap<String, Long>();
+
     
     //Ticks to wait between standing on a telepad, and sending the player
     private int SEND_WAIT_TIMER = 60;
@@ -30,13 +31,13 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         player.sendMessage(ChatColor.DARK_AQUA+"[TelePad] "+ChatColor.AQUA+msg);
     }
 
-    public static boolean isTelePadLapis(Block lapisBlock){
-
-        if(lapisBlock.getType() == Material.LAPIS_BLOCK
-        && lapisBlock.getFace(BlockFace.EAST).getType() == Material.DOUBLE_STEP
-        && lapisBlock.getFace(BlockFace.WEST).getType() == Material.DOUBLE_STEP
-        && lapisBlock.getFace(BlockFace.NORTH).getType() == Material.DOUBLE_STEP
-        && lapisBlock.getFace(BlockFace.SOUTH).getType() == Material.DOUBLE_STEP
+    public boolean isTelePadLapis(Block lapisBlock){
+        if((plugin.TELEPAD_CENTER_ID == 0 || lapisBlock.getTypeId() == plugin.TELEPAD_CENTER_ID)
+        && (plugin.TELEPAD_SURROUNDING_ID == 0
+            || (lapisBlock.getFace(BlockFace.EAST).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                && lapisBlock.getFace(BlockFace.WEST).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                && lapisBlock.getFace(BlockFace.NORTH).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                && lapisBlock.getFace(BlockFace.SOUTH).getTypeId() == plugin.TELEPAD_SURROUNDING_ID))
         && (lapisBlock.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
                 || lapisBlock.getFace(BlockFace.DOWN).getType() == Material.WALL_SIGN)
         && lapisBlock.getFace(BlockFace.UP).getType() == Material.STONE_PLATE){
@@ -139,11 +140,11 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
 
                 Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
 
+                msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
+
                 if(plugin.DISABLE_TELEPORT_WAIT){
                     plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis));
                 }else{
-                    msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
-
                     plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis),SEND_WAIT_TIMER);
                }
             }
@@ -224,14 +225,15 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         && event.getClickedBlock() != null
         && event.getClickedBlock().getType() == Material.LAPIS_BLOCK){
             Block bResetLapis = event.getClickedBlock();
-            if(bResetLapis.getFace(BlockFace.UP).getType() == Material.AIR
-            &&bResetLapis.getFace(BlockFace.EAST).getType() == Material.DOUBLE_STEP
-            && bResetLapis.getFace(BlockFace.WEST).getType() == Material.DOUBLE_STEP
-            && bResetLapis.getFace(BlockFace.NORTH).getType() == Material.DOUBLE_STEP
-            && bResetLapis.getFace(BlockFace.SOUTH).getType() == Material.DOUBLE_STEP
-            &&(bResetLapis.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
+            if(bResetLapis.getType() == Material.AIR
+            && (plugin.TELEPAD_SURROUNDING_ID == 0
+                || (bResetLapis.getFace(BlockFace.EAST).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                    && bResetLapis.getFace(BlockFace.WEST).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                    && bResetLapis.getFace(BlockFace.NORTH).getTypeId() == plugin.TELEPAD_SURROUNDING_ID
+                    && bResetLapis.getFace(BlockFace.SOUTH).getTypeId() == plugin.TELEPAD_SURROUNDING_ID))
+            && (bResetLapis.getFace(BlockFace.DOWN).getType() == Material.SIGN_POST
                 || bResetLapis.getFace(BlockFace.DOWN).getType() == Material.WALL_SIGN)
-            ){//*phew*
+            && bResetLapis.getFace(BlockFace.UP).getType() == Material.STONE_PLATE){//*phew*
                 //We checked that it's a sign above
                 Sign sbResetSign = (Sign) bResetLapis.getFace(BlockFace.DOWN).getState();
 
@@ -264,19 +266,16 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 msgPlayer(player,"You moved, cancelling teleport!");
                 return;
             }
-            if(isTelePadLapis(sender) && isTelePadLapis(receiver)){
-                msgPlayer(player,"Here goes nothing!");
+            
+            msgPlayer(player,"Here goes nothing!");
 
-                Location lSendTo = receiver.getFace(BlockFace.UP,2).getFace(BlockFace.NORTH).getLocation();
-                lSendTo.setX(lSendTo.getX()+0.5);
-                lSendTo.setZ(lSendTo.getZ()+0.5);
+            Location lSendTo = receiver.getFace(BlockFace.UP,2).getFace(BlockFace.NORTH).getLocation();
+            lSendTo.setX(lSendTo.getX()+0.5);
+            lSendTo.setZ(lSendTo.getZ()+0.5);
 
-                player.teleport(lSendTo);
+            player.teleport(lSendTo);
 
-                mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
-            }else{
-               msgPlayer(player,"Something went wrong! Just be grateful you didn't get split in half!");
-            }
+            mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
         }
     }
 }
