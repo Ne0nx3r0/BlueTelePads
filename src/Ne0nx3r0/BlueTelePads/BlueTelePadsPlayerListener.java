@@ -269,11 +269,15 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
             
             msgPlayer(player,"Here goes nothing!");
 
-            Location lSendTo = receiver.getFace(BlockFace.UP,2).getFace(BlockFace.NORTH).getLocation();
+            Location lSendTo = receiver.getFace(BlockFace.UP,2).getLocation();
             lSendTo.setX(lSendTo.getX()+0.5);
             lSendTo.setZ(lSendTo.getZ()+0.5);
 
+            lSendTo.setPitch(player.getLocation().getPitch());
+            lSendTo.setYaw(player.getLocation().getYaw());
+
             player.teleport(lSendTo);
+
 
             mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
         }
