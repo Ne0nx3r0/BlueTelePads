@@ -19,8 +19,10 @@ public class BlueTelePads extends JavaPlugin{
     public boolean USE_PERMISSIONS = false;
     public boolean OP_ONLY = false;
     public boolean DISABLE_TELEPORT_WAIT = false;
+    public boolean DISABLE_TELEPORT_MESSAGE = false;
     public int TELEPAD_CENTER_ID = 22;
     public int TELEPAD_SURROUNDING_ID = 43;
+
 
 
     public void onDisable(){
@@ -38,6 +40,7 @@ public class BlueTelePads extends JavaPlugin{
             config.setProperty("use_permissions",USE_PERMISSIONS);
             config.setProperty("op_only",OP_ONLY);
             config.setProperty("disable_teleport_wait",DISABLE_TELEPORT_WAIT);
+            config.setProperty("disable_teleport_message", DISABLE_TELEPORT_MESSAGE);
             config.setProperty("telepad_center",TELEPAD_CENTER_ID);
             config.setProperty("telepad_surrounding",TELEPAD_SURROUNDING_ID);
 
@@ -48,6 +51,7 @@ public class BlueTelePads extends JavaPlugin{
         USE_PERMISSIONS = config.getBoolean("use_permissions",USE_PERMISSIONS);
         OP_ONLY = config.getBoolean("op_only",OP_ONLY);
         DISABLE_TELEPORT_WAIT = config.getBoolean("disable_teleport_wait",DISABLE_TELEPORT_WAIT);
+        DISABLE_TELEPORT_MESSAGE = config.getBoolean("disable_teleport_message",DISABLE_TELEPORT_MESSAGE);
         TELEPAD_CENTER_ID = config.getInt("telepad_center",TELEPAD_CENTER_ID);
         TELEPAD_SURROUNDING_ID = config.getInt("telepad_surrounding",TELEPAD_SURROUNDING_ID);
 

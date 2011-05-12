@@ -139,14 +139,38 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 }
 
                 Sign sbReceiverSign = (Sign) bReceiverLapis.getFace(BlockFace.DOWN).getState();
+                
+                if(!plugin.DISABLE_TELEPORT_MESSAGE){
+                    String sMessage;
 
-                msgPlayer(event.getPlayer(),"Preparing to send you to "+ChatColor.YELLOW+sbReceiverSign.getLine(3)+ChatColor.AQUA+", stand still!");
+                    if(!plugin.DISABLE_TELEPORT_WAIT){
+                        if(sbReceiverSign.getLine(3).equals("")){
+                            sMessage = "Preparing to send you, stand still!";
+                        }else{
+                            sMessage = "Preparing to send you to "
+                                +ChatColor.YELLOW+sbReceiverSign.getLine(3)
+                                +ChatColor.AQUA+", stand still!";
+                        }
+                    }else{
+                        if(sbReceiverSign.getLine(3).equals("")){
+                            sMessage = "You have been teleported!";
+                        }else{
+                            sMessage = "You have been teleported to "
+                                +ChatColor.YELLOW+sbReceiverSign.getLine(3);
+                        }
+                    }
 
+
+                    msgPlayer(event.getPlayer(),sMessage);
+                }
+                
                 if(plugin.DISABLE_TELEPORT_WAIT){
-                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis));
+                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis,plugin.DISABLE_TELEPORT_WAIT));
                 }else{
-                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis),SEND_WAIT_TIMER);
+                    plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin,new BluePadTeleport(event.getPlayer(),event.getPlayer().getLocation(),bSenderLapis,bReceiverLapis,plugin.DISABLE_TELEPORT_WAIT),SEND_WAIT_TIMER);
                }
+
+
             }
         }
         //Creating a telepad link
@@ -253,12 +277,14 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
         private final Location player_location;
         private final Block receiver;
         private final Block sender;
+        private final boolean disable_teleport_wait;
 
-        BluePadTeleport(Player player,Location player_location,Block senderLapis,Block receiverLapis){
+        BluePadTeleport(Player player,Location player_location,Block senderLapis,Block receiverLapis,boolean disable_teleport_wait){
             this.player = player;
             this.player_location = player_location;
             this.sender = senderLapis;
             this.receiver = receiverLapis;
+            this.disable_teleport_wait = disable_teleport_wait;
         }
 
         public void run(){
@@ -266,8 +292,10 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
                 msgPlayer(player,"You moved, cancelling teleport!");
                 return;
             }
-            
-            msgPlayer(player,"Here goes nothing!");
+
+            if(!this.disable_teleport_wait){
+                msgPlayer(player,"Here goes nothing!");
+            }
 
             Location lSendTo = receiver.getFace(BlockFace.UP,2).getLocation();
             lSendTo.setX(lSendTo.getX()+0.5);
