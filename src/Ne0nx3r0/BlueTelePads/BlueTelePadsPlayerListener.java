@@ -302,10 +302,28 @@ public class BlueTelePadsPlayerListener extends PlayerListener {
             lSendTo.setZ(lSendTo.getZ()+0.5);
 
             lSendTo.setPitch(player.getLocation().getPitch());
-            lSendTo.setYaw(player.getLocation().getYaw());
+
+            Block bSign = receiver.getFace(BlockFace.DOWN);
+
+            if(bSign.getType() == Material.SIGN_POST){
+                lSendTo.setYaw(bSign.getData()*22.5f);
+            }else if(bSign.getType() == Material.WALL_SIGN){
+                byte bSignData = bSign.getData();
+
+                if(bSignData == 0x2){//East
+                    lSendTo.setYaw(180);
+                }else if(bSignData == 0x3){//West
+                    lSendTo.setYaw(0);
+                }else if(bSignData == 0x4){//North
+                    lSendTo.setYaw(270);
+                }else{//South
+                    lSendTo.setYaw(90);
+                }
+            }else{
+                lSendTo.setYaw(player.getLocation().getYaw());
+            }
 
             player.teleport(lSendTo);
-
 
             mTimeouts.put(player.getName(),System.currentTimeMillis()+5000);
         }
